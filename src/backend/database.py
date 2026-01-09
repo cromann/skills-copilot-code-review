@@ -218,7 +218,7 @@ initial_announcements = [
     {
         "message": "Activity registration is open until the end of the month. Don't lose your spot!",
         "start_date": "2026-01-01",
-        "expiration_date": "2026-01-31",
+        "expiration_date": "2026-12-31",
         "created_by": "principal",
         "created_at": "2026-01-01T00:00:00"
     }

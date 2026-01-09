@@ -8,8 +8,14 @@ Only authenticated users can manage announcements.
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import datetime, date
+from datetime import datetime
+from bson import ObjectId
+from bson.errors import InvalidId
+import logging
 from ..database import announcements_collection, teachers_collection
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/announcements",
@@ -64,7 +70,7 @@ async def get_active_announcements():
         return active_announcements
     except Exception as e:
         # Log error but don't expose details to client
-        print(f"Error fetching active announcements: {e}")
+        logger.error(f"Error fetching active announcements: {e}")
         return []
 
 
@@ -95,7 +101,7 @@ async def get_all_announcements(username: str = Query(...)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error fetching all announcements: {e}")
+        logger.error(f"Error fetching all announcements: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch announcements")
 
 
@@ -144,7 +150,7 @@ async def create_announcement(announcement: AnnouncementCreate):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error creating announcement: {e}")
+        logger.error(f"Error creating announcement: {e}")
         raise HTTPException(status_code=500, detail="Failed to create announcement")
 
 
@@ -165,10 +171,9 @@ async def update_announcement(
             raise HTTPException(status_code=401, detail="Unauthorized")
         
         # Find announcement
-        from bson import ObjectId
         try:
             obj_id = ObjectId(announcement_id)
-        except:
+        except InvalidId:
             raise HTTPException(status_code=400, detail="Invalid announcement ID")
         
         existing = announcements_collection.find_one({"_id": obj_id})
@@ -184,18 +189,31 @@ async def update_announcement(
         if announcement.expiration_date is not None:
             update_doc["expiration_date"] = announcement.expiration_date
         
-        # Validate dates if both are present
-        if "start_date" in update_doc and "expiration_date" in update_doc:
-            try:
-                start = datetime.fromisoformat(update_doc["start_date"]).date() if update_doc["start_date"] else None
-                exp = datetime.fromisoformat(update_doc["expiration_date"]).date()
-                if start and start > exp:
-                    raise HTTPException(
-                        status_code=400,
-                        detail="Start date must be before expiration date"
-                    )
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Invalid date format")
+        # Validate dates using effective post-update values
+        try:
+            existing_start_str = existing.get("start_date")
+            existing_exp_str = existing.get("expiration_date")
+
+            # Determine what the dates will be after this update
+            new_start_str = update_doc.get("start_date", existing_start_str)
+            new_exp_str = update_doc.get("expiration_date", existing_exp_str)
+
+            new_start = None
+            if new_start_str:
+                new_start = datetime.fromisoformat(new_start_str).date()
+
+            new_exp = None
+            if new_exp_str:
+                new_exp = datetime.fromisoformat(new_exp_str).date()
+
+            # Enforce that start date is not after expiration date when both are present
+            if new_start and new_exp and new_start > new_exp:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Start date must be before expiration date"
+                )
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format")
         
         # Update announcement
         announcements_collection.update_one(
@@ -212,7 +230,7 @@ async def update_announcement(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error updating announcement: {e}")
+        logger.error(f"Error updating announcement: {e}")
         raise HTTPException(status_code=500, detail="Failed to update announcement")
 
 
@@ -232,10 +250,9 @@ async def delete_announcement(
             raise HTTPException(status_code=401, detail="Unauthorized")
         
         # Delete announcement
-        from bson import ObjectId
         try:
             obj_id = ObjectId(announcement_id)
-        except:
+        except InvalidId:
             raise HTTPException(status_code=400, detail="Invalid announcement ID")
         
         result = announcements_collection.delete_one({"_id": obj_id})
@@ -247,5 +264,5 @@ async def delete_announcement(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error deleting announcement: {e}")
+        logger.error(f"Error deleting announcement: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete announcement")
