@@ -12,8 +12,8 @@
     />
   </head>
   <body>
-    <div class="announcement-banner">
-      <span aria-hidden="true">📢</span> Activity registration is open until the end of the month. Don't lose your spot!
+    <div class="announcement-banner" id="announcement-banner">
+      <!-- Announcements will be loaded dynamically -->
     </div>
 
     <header>
@@ -21,6 +21,10 @@
       <h2>Extracurricular Activities</h2>
       <div id="user-controls">
         <div id="user-status">
+          <button id="manage-announcements-button" class="icon-button hidden" aria-label="Manage Announcements">
+            <span class="announcement-icon">📢</span>
+            <span>Manage Announcements</span>
+          </button>
           <button id="login-button" class="icon-button">
             <span class="user-icon">👤</span>
             <span>Login</span>
@@ -135,6 +139,63 @@
           <button type="submit">Login</button>
         </form>
         <div id="login-message" class="hidden message"></div>
+      </div>
+    </div>
+
+    <!-- Announcement Management Modal -->
+    <div id="announcement-modal" class="modal hidden">
+      <div class="modal-content announcement-modal-content">
+        <span class="close-announcement-modal">&times;</span>
+        <h3>Manage Announcements</h3>
+        
+        <!-- Add New Announcement Form -->
+        <div class="announcement-form-section">
+          <h4>Add New Announcement</h4>
+          <form id="announcement-form">
+            <div class="form-group">
+              <label for="announcement-message">Message:</label>
+              <textarea 
+                id="announcement-message" 
+                required 
+                placeholder="Enter announcement message..."
+                maxlength="500"
+                rows="3"
+              ></textarea>
+              <small class="char-count"><span id="char-count">0</span>/500 characters</small>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="announcement-start-date">Start Date (Optional):</label>
+                <input 
+                  type="date" 
+                  id="announcement-start-date"
+                />
+              </div>
+              <div class="form-group">
+                <label for="announcement-expiration-date">Expiration Date:</label>
+                <input 
+                  type="date" 
+                  id="announcement-expiration-date" 
+                  required
+                />
+              </div>
+            </div>
+            <button type="submit" class="btn-primary">
+              <span class="btn-icon">➕</span> Add Announcement
+            </button>
+          </form>
+        </div>
+
+        <!-- List of Announcements -->
+        <div class="announcement-list-section">
+          <h4>Existing Announcements</h4>
+          <div id="announcements-list" class="announcements-list">
+            <!-- Announcements will be loaded here -->
+            <p class="loading-text">Loading announcements...</p>
+          </div>
+        </div>
+        
+        <div id="announcement-management-message" class="hidden message"></div>
       </div>
     </div>
 
