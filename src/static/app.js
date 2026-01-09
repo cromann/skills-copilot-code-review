@@ -965,10 +965,10 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="announcement-header">
               <span class="announcement-status ${statusClass}">${statusText}</span>
               <div class="announcement-actions">
-                <button class="btn-edit" onclick="editAnnouncement('${announcement.id}')" aria-label="Edit announcement">
+                <button class="btn-edit" data-announcement-id="${announcement.id}" aria-label="Edit announcement">
                   <span>✏️</span> Edit
                 </button>
-                <button class="btn-delete" onclick="deleteAnnouncement('${announcement.id}')" aria-label="Delete announcement">
+                <button class="btn-delete" data-announcement-id="${announcement.id}" aria-label="Delete announcement">
                   <span>🗑️</span> Delete
                 </button>
               </div>
@@ -1037,10 +1037,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const startDate = document.getElementById("announcement-start-date").value || null;
     const expirationDate = document.getElementById("announcement-expiration-date").value;
 
-    // Validate expiration date is in the future
+    // Validate expiration date is in the future (after today)
     const today = new Date().toISOString().split("T")[0];
-    if (expirationDate < today) {
-      showAnnouncementMessage("Expiration date must be in the future.", "error");
+    if (expirationDate <= today) {
+      showAnnouncementMessage("Expiration date must be after today.", "error");
       return;
     }
 
@@ -1081,7 +1081,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Edit announcement (inline editing)
-  window.editAnnouncement = async (announcementId) => {
+  function editAnnouncement(announcementId) {
     const announcementItem = document.querySelector(`[data-id="${announcementId}"]`);
     if (!announcementItem) return;
 
@@ -1100,7 +1100,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Replace with edit form
     announcementItem.innerHTML = `
-      <form class="announcement-edit-form" onsubmit="saveAnnouncementEdit(event, '${announcementId}')">
+      <form class="announcement-edit-form" data-announcement-id="${announcementId}">
         <div class="form-group">
           <label>Message:</label>
           <textarea class="edit-message" required maxlength="500">${escapeHtml(currentMessage)}</textarea>
@@ -1117,14 +1117,21 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
         <div class="form-actions">
           <button type="submit" class="btn-save">💾 Save</button>
-          <button type="button" class="btn-cancel" onclick="cancelAnnouncementEdit('${announcementId}')">❌ Cancel</button>
+          <button type="button" class="btn-cancel">❌ Cancel</button>
         </div>
       </form>
     `;
-  };
+
+    // Add event listeners for the form
+    const editForm = announcementItem.querySelector(".announcement-edit-form");
+    editForm.addEventListener("submit", (e) => saveAnnouncementEdit(e, announcementId));
+    
+    const cancelButton = announcementItem.querySelector(".btn-cancel");
+    cancelButton.addEventListener("click", cancelAnnouncementEdit);
+  }
 
   // Save announcement edit
-  window.saveAnnouncementEdit = async (event, announcementId) => {
+  async function saveAnnouncementEdit(event, announcementId) {
     event.preventDefault();
 
     if (!currentUser) return;
@@ -1168,15 +1175,15 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Error updating announcement:", error);
       showAnnouncementMessage(error.message, "error");
     }
-  };
+  }
 
   // Cancel announcement edit
-  window.cancelAnnouncementEdit = () => {
+  function cancelAnnouncementEdit() {
     loadAllAnnouncements();
-  };
+  }
 
   // Delete announcement
-  window.deleteAnnouncement = async (announcementId) => {
+  async function deleteAnnouncement(announcementId) {
     if (!currentUser) return;
 
     if (!confirm("Are you sure you want to delete this announcement?")) {
@@ -1212,6 +1219,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (closeAnnouncementModal) {
     closeAnnouncementModal.addEventListener("click", closeAnnouncementModalHandler);
+  }
+
+  // Event delegation for edit and delete buttons in announcements list
+  if (announcementsList) {
+    announcementsList.addEventListener("click", (event) => {
+      const target = event.target.closest("button");
+      if (!target) return;
+
+      const announcementId = target.dataset.announcementId;
+      if (!announcementId) return;
+
+      if (target.classList.contains("btn-edit")) {
+        editAnnouncement(announcementId);
+      } else if (target.classList.contains("btn-delete")) {
+        deleteAnnouncement(announcementId);
+      }
+    });
   }
 
   // Close modal when clicking outside
